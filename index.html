@@ -117,7 +117,10 @@
     <div class="days-display" id="daysLeft">--</div>
     <div class="status" id="status">Loading...</div>
     
-    <button class="report-btn" id="reportBtn">✓ I Reported Today</button>
+    <div style="display: flex; gap: 10px;">
+      <button class="report-btn" id="reportBtn" style="flex:1;">✓ Reported</button>
+      <button class="report-btn" id="reentryBtn" style="flex:1; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">✈️ Re-entered</button>
+    </div>
     
     <div style="margin-top: 15px;">
       <label style="font-size: 0.9rem; color: #888;">Or pick a specific date:</label>
@@ -131,7 +134,20 @@
         color: #fff;
         font-size: 1rem;
       ">
-      <button class="report-btn" id="setDateBtn" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); margin-top: 10px;">
+      <select id="dateType" style="
+        width: 100%;
+        padding: 12px;
+        margin-top: 8px;
+        border-radius: 8px;
+        border: 1px solid rgba(255,255,255,0.2);
+        background: rgba(255,255,255,0.1);
+        color: #fff;
+        font-size: 1rem;
+      ">
+        <option value="report">📋 TM.47 Report</option>
+        <option value="reentry">✈️ Re-entry to Thailand</option>
+      </select>
+      <button class="report-btn" id="setDateBtn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); margin-top: 10px;">
         📅 Set This Date
       </button>
     </div>
@@ -143,7 +159,7 @@
     <div class="reminders" id="reminders"></div>
     
     <div class="info">
-      <div>Last report: <span id="lastReport">--</span></div>
+      <div><span id="lastTypeLabel">Last report</span>: <span id="lastReport">--</span></div>
       <div>Deadline: <span id="deadline">--</span></div>
     </div>
   </div>
@@ -152,6 +168,7 @@
 
   <script>
     const STORAGE_KEY = 'thai90day_lastReport';
+    const STORAGE_TYPE_KEY = 'thai90day_lastType';
     const REMINDER_DAYS = [45, 85, 90];
     
     function getLastReport() {
@@ -159,10 +176,15 @@
       return stored ? new Date(stored) : null;
     }
     
-    function setLastReport(date) {
+    function getLastType() {
+      return localStorage.getItem(STORAGE_TYPE_KEY) || 'report';
+    }
+    
+    function setLastReport(date, type = 'report') {
       localStorage.setItem(STORAGE_KEY, date.toISOString());
+      localStorage.setItem(STORAGE_TYPE_KEY, type);
       update();
-      showToast();
+      showToast(type === 'reentry' ? '✈️ Re-entry date saved!' : '✓ Report date updated!');
     }
     
     function daysBetween(d1, d2) {
@@ -182,17 +204,22 @@
       const lastReportEl = document.getElementById('lastReport');
       const deadlineEl = document.getElementById('deadline');
       const remindersEl = document.getElementById('reminders');
+      const lastTypeLabelEl = document.getElementById('lastTypeLabel');
+      const lastType = getLastType();
       
       if (!lastReport) {
         daysEl.textContent = '--';
         daysEl.style.color = '#888';
         statusEl.textContent = 'No report recorded';
         statusEl.className = 'status';
+        lastTypeLabelEl.textContent = 'Last report';
         lastReportEl.textContent = 'Never';
         deadlineEl.textContent = '--';
         remindersEl.innerHTML = '';
         return;
       }
+      
+      lastTypeLabelEl.textContent = lastType === 'reentry' ? 'Last entry' : 'Last report';
       
       const deadline = new Date(lastReport);
       deadline.setDate(deadline.getDate() + 90);
@@ -238,27 +265,36 @@
       remindersEl.innerHTML = html;
     }
     
-    function showToast() {
+    function showToast(message = '✓ Report date updated!') {
       const toast = document.getElementById('toast');
+      toast.textContent = message;
       toast.classList.add('show');
       setTimeout(() => toast.classList.remove('show'), 3000);
     }
     
     document.getElementById('reportBtn').addEventListener('click', () => {
       if (confirm('Mark today as your last 90-day report date?')) {
-        setLastReport(new Date());
+        setLastReport(new Date(), 'report');
+      }
+    });
+    
+    document.getElementById('reentryBtn').addEventListener('click', () => {
+      if (confirm('Mark today as your Thailand re-entry date? (Resets the 90-day counter)')) {
+        setLastReport(new Date(), 'reentry');
       }
     });
     
     document.getElementById('setDateBtn').addEventListener('click', () => {
       const dateInput = document.getElementById('datePicker').value;
+      const dateType = document.getElementById('dateType').value;
       if (!dateInput) {
         alert('Please select a date first');
         return;
       }
       const selectedDate = new Date(dateInput + 'T12:00:00');
-      if (confirm(`Set ${formatDate(selectedDate)} as your last report date?`)) {
-        setLastReport(selectedDate);
+      const typeLabel = dateType === 'reentry' ? 're-entry' : 'report';
+      if (confirm(`Set ${formatDate(selectedDate)} as your last ${typeLabel} date?`)) {
+        setLastReport(selectedDate, dateType);
       }
     });
     
