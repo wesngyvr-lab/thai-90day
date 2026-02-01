@@ -152,8 +152,12 @@
       </button>
     </div>
     
-    <button class="report-btn" id="addToCalendar" style="background: linear-gradient(135deg, #4285f4 0%, #34a853 100%); margin-top: 20px;">
-      📅 Add Reminders to Google Calendar
+    <button class="report-btn" id="syncToWing" style="background: linear-gradient(135deg, #0088cc 0%, #00c6ff 100%); margin-top: 20px;">
+      📬 Sync Reminders to Wing (Telegram)
+    </button>
+    
+    <button class="report-btn" id="addToCalendar" style="background: linear-gradient(135deg, #4285f4 0%, #34a853 100%); margin-top: 10px; font-size: 0.9rem; padding: 12px;">
+      📅 Or add to Google Calendar
     </button>
     
     <div class="reminders" id="reminders"></div>
@@ -296,6 +300,39 @@
       if (confirm(`Set ${formatDate(selectedDate)} as your last ${typeLabel} date?`)) {
         setLastReport(selectedDate, dateType);
       }
+    });
+    
+    // Telegram sync to Wing
+    document.getElementById('syncToWing').addEventListener('click', () => {
+      const lastReport = getLastReport();
+      if (!lastReport) {
+        alert('Please set your last report date first!');
+        return;
+      }
+      
+      const lastType = getLastType();
+      const typeLabel = lastType === 'reentry' ? 'Re-entry' : 'TM.47 Report';
+      
+      const reminderDates = REMINDER_DAYS.map(days => {
+        const d = new Date(lastReport);
+        d.setDate(d.getDate() + days);
+        return `• Day ${days}: ${formatDate(d)}`;
+      }).join('\n');
+      
+      const msg = `🇹🇭 Please set up my 90-day reminders:
+
+Last ${typeLabel}: ${formatDate(lastReport)}
+
+Reminder dates:
+${reminderDates}
+
+Please create/update cron jobs for days 45, 85, and 90.`;
+      
+      // Open Telegram with pre-filled message
+      const telegramUrl = `https://t.me/wing_helper_bot?text=${encodeURIComponent(msg)}`;
+      window.open(telegramUrl, '_blank');
+      
+      showToast('📬 Opening Telegram...');
     });
     
     function formatDateForGCal(date) {
