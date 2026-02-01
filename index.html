@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🇹🇭 90-Day Report Tracker</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      padding: 20px;
+    }
+    .container {
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(10px);
+      border-radius: 24px;
+      padding: 40px;
+      max-width: 400px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }
+    h1 { font-size: 1.5rem; margin-bottom: 8px; }
+    .subtitle { color: #888; font-size: 0.9rem; margin-bottom: 30px; }
+    .days-display {
+      font-size: 5rem;
+      font-weight: 700;
+      margin: 20px 0;
+      transition: color 0.3s;
+    }
+    .days-label { font-size: 1.1rem; color: #aaa; margin-bottom: 10px; }
+    .status {
+      padding: 12px 24px;
+      border-radius: 50px;
+      font-weight: 600;
+      margin: 20px 0;
+      display: inline-block;
+    }
+    .status.safe { background: rgba(46, 213, 115, 0.2); color: #2ed573; }
+    .status.warning { background: rgba(255, 193, 7, 0.2); color: #ffc107; }
+    .status.urgent { background: rgba(255, 107, 107, 0.2); color: #ff6b6b; }
+    .status.overdue { background: rgba(255, 71, 87, 0.3); color: #ff4757; }
+    
+    .report-btn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      border: none;
+      padding: 16px 32px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      border-radius: 12px;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 20px;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .report-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+    }
+    .report-btn:active { transform: translateY(0); }
+    
+    .info {
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      font-size: 0.85rem;
+      color: #666;
+    }
+    .info div { margin: 8px 0; }
+    .info span { color: #aaa; }
+    
+    .reminders {
+      margin-top: 20px;
+      text-align: left;
+      font-size: 0.85rem;
+    }
+    .reminders h3 { font-size: 0.9rem; color: #888; margin-bottom: 10px; }
+    .reminder-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .reminder-item.past { color: #555; text-decoration: line-through; }
+    .reminder-item.upcoming { color: #ffc107; }
+    .reminder-item.today { color: #ff6b6b; font-weight: 600; }
+    
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #2ed573;
+      color: #000;
+      padding: 16px 32px;
+      border-radius: 12px;
+      font-weight: 600;
+      opacity: 0;
+      transition: all 0.3s;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🇹🇭 90-Day Report Tracker</h1>
+    <p class="subtitle">Thailand Immigration TM.47</p>
+    
+    <div class="days-label">Days until deadline</div>
+    <div class="days-display" id="daysLeft">--</div>
+    <div class="status" id="status">Loading...</div>
+    
+    <button class="report-btn" id="reportBtn">✓ I Reported Today</button>
+    
+    <div class="reminders" id="reminders"></div>
+    
+    <div class="info">
+      <div>Last report: <span id="lastReport">--</span></div>
+      <div>Deadline: <span id="deadline">--</span></div>
+    </div>
+  </div>
+  
+  <div class="toast" id="toast">✓ Report date updated!</div>
+
+  <script>
+    const STORAGE_KEY = 'thai90day_lastReport';
+    const REMINDER_DAYS = [45, 85, 90];
+    
+    function getLastReport() {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      return stored ? new Date(stored) : null;
+    }
+    
+    function setLastReport(date) {
+      localStorage.setItem(STORAGE_KEY, date.toISOString());
+      update();
+      showToast();
+    }
+    
+    function daysBetween(d1, d2) {
+      return Math.ceil((d2 - d1) / (1000 * 60 * 60 * 24));
+    }
+    
+    function formatDate(date) {
+      return date.toLocaleDateString('en-US', { 
+        weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
+      });
+    }
+    
+    function update() {
+      const lastReport = getLastReport();
+      const daysEl = document.getElementById('daysLeft');
+      const statusEl = document.getElementById('status');
+      const lastReportEl = document.getElementById('lastReport');
+      const deadlineEl = document.getElementById('deadline');
+      const remindersEl = document.getElementById('reminders');
+      
+      if (!lastReport) {
+        daysEl.textContent = '--';
+        daysEl.style.color = '#888';
+        statusEl.textContent = 'No report recorded';
+        statusEl.className = 'status';
+        lastReportEl.textContent = 'Never';
+        deadlineEl.textContent = '--';
+        remindersEl.innerHTML = '';
+        return;
+      }
+      
+      const deadline = new Date(lastReport);
+      deadline.setDate(deadline.getDate() + 90);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const daysLeft = daysBetween(today, deadline);
+      
+      daysEl.textContent = Math.abs(daysLeft);
+      lastReportEl.textContent = formatDate(lastReport);
+      deadlineEl.textContent = formatDate(deadline);
+      
+      if (daysLeft < 0) {
+        daysEl.style.color = '#ff4757';
+        statusEl.textContent = `⚠️ ${Math.abs(daysLeft)} days OVERDUE`;
+        statusEl.className = 'status overdue';
+      } else if (daysLeft <= 5) {
+        daysEl.style.color = '#ff6b6b';
+        statusEl.textContent = '🚨 Report NOW!';
+        statusEl.className = 'status urgent';
+      } else if (daysLeft <= 15) {
+        daysEl.style.color = '#ffc107';
+        statusEl.textContent = '⚠️ Report soon';
+        statusEl.className = 'status warning';
+      } else {
+        daysEl.style.color = '#2ed573';
+        statusEl.textContent = '✓ You\'re good';
+        statusEl.className = 'status safe';
+      }
+      
+      // Show reminder dates
+      let html = '<h3>📅 Reminder dates</h3>';
+      REMINDER_DAYS.forEach(days => {
+        const reminderDate = new Date(lastReport);
+        reminderDate.setDate(reminderDate.getDate() + days);
+        const isPast = reminderDate < today;
+        const isToday = daysBetween(today, reminderDate) === 0;
+        const className = isToday ? 'today' : (isPast ? 'past' : 'upcoming');
+        html += `<div class="reminder-item ${className}">
+          <span>Day ${days}</span>
+          <span>${formatDate(reminderDate)}</span>
+        </div>`;
+      });
+      remindersEl.innerHTML = html;
+    }
+    
+    function showToast() {
+      const toast = document.getElementById('toast');
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+    
+    document.getElementById('reportBtn').addEventListener('click', () => {
+      if (confirm('Mark today as your last 90-day report date?')) {
+        setLastReport(new Date());
+      }
+    });
+    
+    update();
+  </script>
+</body>
+</html>
