@@ -119,7 +119,24 @@
     
     <button class="report-btn" id="reportBtn">✓ I Reported Today</button>
     
-    <button class="report-btn" id="setupReminders" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); margin-top: 10px;">
+    <div style="margin-top: 15px;">
+      <label style="font-size: 0.9rem; color: #888;">Or pick a specific date:</label>
+      <input type="date" id="datePicker" style="
+        width: 100%;
+        padding: 12px;
+        margin-top: 8px;
+        border-radius: 8px;
+        border: 1px solid rgba(255,255,255,0.2);
+        background: rgba(255,255,255,0.1);
+        color: #fff;
+        font-size: 1rem;
+      ">
+      <button class="report-btn" id="setDateBtn" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); margin-top: 10px;">
+        📅 Set This Date
+      </button>
+    </div>
+    
+    <button class="report-btn" id="setupReminders" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); margin-top: 20px;">
       📬 Set Up Telegram Reminders
     </button>
     
@@ -230,6 +247,18 @@
     document.getElementById('reportBtn').addEventListener('click', () => {
       if (confirm('Mark today as your last 90-day report date?')) {
         setLastReport(new Date());
+      }
+    });
+    
+    document.getElementById('setDateBtn').addEventListener('click', () => {
+      const dateInput = document.getElementById('datePicker').value;
+      if (!dateInput) {
+        alert('Please select a date first');
+        return;
+      }
+      const selectedDate = new Date(dateInput + 'T12:00:00');
+      if (confirm(`Set ${formatDate(selectedDate)} as your last report date?`)) {
+        setLastReport(selectedDate);
       }
     });
     
