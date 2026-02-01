@@ -136,8 +136,8 @@
       </button>
     </div>
     
-    <button class="report-btn" id="setupReminders" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); margin-top: 20px;">
-      📬 Set Up Telegram Reminders
+    <button class="report-btn" id="addToCalendar" style="background: linear-gradient(135deg, #4285f4 0%, #34a853 100%); margin-top: 20px;">
+      📅 Add Reminders to Google Calendar
     </button>
     
     <div class="reminders" id="reminders"></div>
@@ -262,24 +262,94 @@
       }
     });
     
-    document.getElementById('setupReminders').addEventListener('click', () => {
+    function formatDateForGCal(date) {
+      // Format: YYYYMMDD
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return `${y}${m}${d}`;
+    }
+    
+    function createGCalUrl(title, date, description) {
+      const dateStr = formatDateForGCal(date);
+      const nextDay = new Date(date);
+      nextDay.setDate(nextDay.getDate() + 1);
+      const endDateStr = formatDateForGCal(nextDay);
+      
+      const params = new URLSearchParams({
+        action: 'TEMPLATE',
+        text: title,
+        dates: `${dateStr}/${endDateStr}`,
+        details: description
+      });
+      
+      return `https://calendar.google.com/calendar/render?${params.toString()}`;
+    }
+    
+    document.getElementById('addToCalendar').addEventListener('click', () => {
       const lastReport = getLastReport();
       if (!lastReport) {
         alert('Please set your last report date first!');
         return;
       }
       
-      const reminders = REMINDER_DAYS.map(days => {
-        const d = new Date(lastReport);
-        d.setDate(d.getDate() + days);
-        return `Day ${days}: ${formatDate(d)}`;
-      }).join('\\n');
+      const deadline = new Date(lastReport);
+      deadline.setDate(deadline.getDate() + 90);
       
-      const msg = `🇹🇭 Please set up my 90-day reminders:\\n\\nLast report: ${formatDate(lastReport)}\\n\\n${reminders}`;
+      const reminderConfigs = [
+        { days: 45, title: '🇹🇭 90-Day Report: Halfway Reminder', urgency: 'halfway point' },
+        { days: 85, title: '🇹🇭 90-Day Report: 5 Days Left!', urgency: '5 days remaining' },
+        { days: 90, title: '🚨 90-Day Report: DEADLINE TODAY', urgency: 'DEADLINE' }
+      ];
       
-      // Open Telegram with pre-filled message to Wing bot
-      const telegramUrl = `https://t.me/wingmatebot?text=${encodeURIComponent(msg)}`;
-      window.open(telegramUrl, '_blank');
+      const links = reminderConfigs.map(config => {
+        const reminderDate = new Date(lastReport);
+        reminderDate.setDate(reminderDate.getDate() + config.days);
+        const description = `Thailand TM.47 90-Day Report\\n\\nLast report: ${formatDate(lastReport)}\\nDeadline: ${formatDate(deadline)}\\n\\nThis is your ${config.urgency} reminder.`;
+        return {
+          ...config,
+          date: reminderDate,
+          url: createGCalUrl(config.title, reminderDate, description)
+        };
+      });
+      
+      // Show modal with links
+      const modal = document.createElement('div');
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px;';
+      modal.innerHTML = `
+        <div style="background:#1a1a2e;border-radius:16px;padding:30px;max-width:400px;width:100%;">
+          <h2 style="margin-bottom:20px;font-size:1.2rem;">📅 Add to Google Calendar</h2>
+          <p style="color:#888;font-size:0.9rem;margin-bottom:20px;">Click each button to add the reminder:</p>
+          ${links.map(l => `
+            <a href="${l.url}" target="_blank" style="
+              display:block;
+              background:linear-gradient(135deg, #4285f4 0%, #34a853 100%);
+              color:#fff;
+              padding:12px 20px;
+              border-radius:8px;
+              text-decoration:none;
+              margin-bottom:10px;
+              font-weight:600;
+            ">
+              Day ${l.days}: ${formatDate(l.date)}
+            </a>
+          `).join('')}
+          <button onclick="this.parentElement.parentElement.remove()" style="
+            width:100%;
+            margin-top:15px;
+            padding:12px;
+            background:rgba(255,255,255,0.1);
+            border:none;
+            border-radius:8px;
+            color:#fff;
+            cursor:pointer;
+          ">Close</button>
+        </div>
+      `;
+      document.body.appendChild(modal);
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.remove();
+      });
     });
     
     update();
