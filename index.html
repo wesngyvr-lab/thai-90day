@@ -119,6 +119,10 @@
     
     <button class="report-btn" id="reportBtn">✓ I Reported Today</button>
     
+    <button class="report-btn" id="setupReminders" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); margin-top: 10px;">
+      📬 Set Up Telegram Reminders
+    </button>
+    
     <div class="reminders" id="reminders"></div>
     
     <div class="info">
@@ -227,6 +231,26 @@
       if (confirm('Mark today as your last 90-day report date?')) {
         setLastReport(new Date());
       }
+    });
+    
+    document.getElementById('setupReminders').addEventListener('click', () => {
+      const lastReport = getLastReport();
+      if (!lastReport) {
+        alert('Please set your last report date first!');
+        return;
+      }
+      
+      const reminders = REMINDER_DAYS.map(days => {
+        const d = new Date(lastReport);
+        d.setDate(d.getDate() + days);
+        return `Day ${days}: ${formatDate(d)}`;
+      }).join('\\n');
+      
+      const msg = `🇹🇭 Please set up my 90-day reminders:\\n\\nLast report: ${formatDate(lastReport)}\\n\\n${reminders}`;
+      
+      // Open Telegram with pre-filled message to Wing bot
+      const telegramUrl = `https://t.me/wingmatebot?text=${encodeURIComponent(msg)}`;
+      window.open(telegramUrl, '_blank');
     });
     
     update();
